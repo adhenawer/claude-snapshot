@@ -1,0 +1,8 @@
+{
+  "claude-hud": {
+    "source": {
+      "source": "github",
+      "repo": "jarrodwatts/claude-hud"
+    }
+  }
+}

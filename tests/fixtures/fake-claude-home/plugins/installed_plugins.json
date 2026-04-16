@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "plugins": {
+    "context7@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/testuser/.claude/plugins/cache/claude-plugins-official/context7/unknown",
+        "version": "unknown",
+        "installedAt": "2026-03-25T00:16:06.025Z",
+        "lastUpdated": "2026-03-26T02:41:56.865Z",
+        "gitCommitSha": "abc123"
+      }
+    ],
+    "supabase@claude-plugins-official": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/testuser/Code/myproject",
+        "installPath": "/Users/testuser/.claude/plugins/cache/claude-plugins-official/supabase/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-25T00:10:11.704Z",
+        "lastUpdated": "2026-03-25T00:10:11.704Z",
+        "gitCommitSha": "def456"
+      }
+    ],
+    "claude-hud@claude-hud": [
+      {
+        "scope": "user",
+        "installPath": "/Users/testuser/.claude/plugins/cache/claude-hud/claude-hud/0.0.12",
+        "version": "0.0.12",
+        "installedAt": "2026-04-15T01:04:48.566Z",
+        "lastUpdated": "2026-04-15T01:04:48.566Z",
+        "gitCommitSha": "ghi789"
+      }
+    ]
+  }
+}
