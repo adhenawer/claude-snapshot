@@ -1,8 +1,16 @@
+<div align="center">
+
 # claude-snapshot
 
-Portable Claude Code setup snapshots. Export your config, plugins, hooks, and settings — apply on another machine in under 2 minutes.
+**Portable Claude Code setup snapshots.** Export your config, plugins, hooks, and global instructions — apply on another machine in under 2 minutes.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757.svg)](https://docs.anthropic.com/en/docs/claude-code)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A518-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 
 ![demo](demo.gif)
+
+</div>
 
 ## Why
 
@@ -10,6 +18,20 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 - **Mac format / OS reinstall** — Save a snapshot before wiping your machine. Restore your entire Claude Code setup after a fresh install.
 - **Safe rollback** — About to experiment with new plugins or risky config changes? Take a snapshot first. If things break, apply the snapshot and you're back to a known good state.
 - **Onboarding** — New team member? Share your team's snapshot and they're up and running with the same plugins, hooks, and conventions.
+
+## Prior art
+
+| Project | What it does | claude-snapshot adds |
+|---|---|---|
+| [`claude-code-dotfiles`](https://github.com/elizabethfuentes12/claude-code-dotfiles) | Git wrapper around `~/.claude/` | Structured manifest, `diff`, `inspect`, automated plugin reinstall |
+| `.claude` dotfiles repos (various) | Copy-paste setup templates | Automated export/apply instead of manual curation |
+| `claude-code-sync` (npm) | Session & usage tracking | Focuses on *configuration*, not session history |
+| `claude-code-config` (npm) | Proxy / permission switcher | Full setup capture, not just permissions |
+
+## Prerequisites
+
+- Claude Code with plugin support
+- Node.js 18+ (the plugin uses the [`tar`](https://www.npmjs.com/package/tar) npm package for archive I/O)
 
 ## Install
 
@@ -73,8 +95,8 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 
 | Artifact | Included |
 |---|---|
-| settings.json (plugins, hooks, permissions, env, statusLine) | Yes |
-| CLAUDE.md + global .md files | Yes |
+| `settings.json` (plugins, hooks, permissions, env, statusLine) | Yes |
+| `CLAUDE.md` + other global `.md` files | Yes |
 | Plugin manifests + marketplace registrations | Yes |
 | Hook scripts | Yes |
 | Plugin caches (with `--full`) | Yes |
@@ -83,14 +105,71 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 
 ## How it works
 
-1. **Export** reads `~/.claude/` and creates a portable `.tar.gz` with a `manifest.json` index
-2. Absolute paths (like `/Users/you/`) are normalized to `$HOME` for portability
-3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins
+```mermaid
+flowchart LR
+  SRC[Machine A<br/>~/.claude/] -->|/snapshot:export| PKG[claude-snapshot.tar.gz]
+  PKG -->|/snapshot:inspect| SUM[manifest summary]
+  PKG -->|/snapshot:diff| DIFF[diff vs current]
+  PKG -->|/snapshot:apply| APP[backup → write → install]
+  APP --> DST[Machine B<br/>~/.claude/]
+```
 
-## Privacy
+1. **Export** reads `~/.claude/` and writes a `.tar.gz` with a `manifest.json` index.
+2. Absolute paths (like `/Users/you/`) are normalized to `$HOME` for portability.
+3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins via `claude plugin add`.
 
-claude-snapshot runs entirely locally. It does not collect, transmit, or store any data outside your machine. Snapshots are saved only where you specify and are never uploaded automatically.
+### Snapshot anatomy
+
+```
+claude-snapshot-YYYY-MM-DD.tar.gz
+├── manifest.json           # plugins, marketplaces, hooks, MDs, checksums
+├── settings.json           # your Claude Code settings
+├── global-md/              # CLAUDE.md and other root-level .md files
+├── hooks/                  # your custom hook scripts
+├── plugins/
+│   ├── installed_plugins.json
+│   ├── known_marketplaces.json
+│   └── blocklist.json
+└── cache/                  # (only with --full)
+```
+
+## Trust & Security
+
+claude-snapshot is designed with reversibility and minimal blast radius in mind.
+
+**What it touches**
+
+- Reads `~/.claude/` on export
+- Writes files into `~/.claude/` on apply — with automatic `.bak` backup of any conflicting file
+- Writes the output tarball to the path you specify (default: `~/`)
+
+**What it doesn't touch**
+
+- No writes outside `~/.claude/` and your chosen output path
+- No network requests — plugin install during apply delegates to Claude Code's own `/plugin install` mechanism
+- No telemetry, no analytics, nothing leaves your machine
+- Does not require `--dangerously-skip-permissions`
+
+**Reversibility**
+
+Every file overwritten during `apply` is copied to `<file>.bak` first. If something breaks, restore from the `.bak` files or re-apply the previous snapshot.
+
+## Uninstall
+
+```bash
+# Remove the plugin
+/plugin uninstall snapshot
+
+# (Optional) Remove the marketplace registration
+/plugin marketplace remove claude-snapshot
+```
+
+Snapshots you created (`*.tar.gz`) are plain files — delete them as you would any other file.
+
+## Contributing
+
+Issues and PRs welcome at [github.com/adhenawer/claude-snapshot/issues](https://github.com/adhenawer/claude-snapshot/issues). For larger changes, please open an issue first to discuss the approach.
 
 ## License
 
-MIT
+[MIT](LICENSE)
