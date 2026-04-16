@@ -12,7 +12,8 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 ## Install
 
 ```
-/plugin install adhenawer/claude-snapshot
+/plugin marketplace add claude-snapshot --github adhenawer/claude-snapshot
+/plugin install snapshot@claude-snapshot
 ```
 
 ## Commands
