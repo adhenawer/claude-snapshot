@@ -2,6 +2,8 @@
 
 Portable Claude Code setup snapshots. Export your config, plugins, hooks, and settings — apply on another machine in under 2 minutes.
 
+![demo](demo.gif)
+
 ## Why
 
 - **Multiple machines** — Keep your personal and work setups in sync. Export at home, drop the file on Drive, apply at work.
@@ -11,9 +13,15 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 
 ## Install
 
-```
-/plugin marketplace add claude-snapshot --github adhenawer/claude-snapshot
+```bash
+# 1. Register the marketplace
+/plugin marketplace add adhenawer/claude-snapshot
+
+# 2. Install the plugin
 /plugin install snapshot@claude-snapshot
+
+# 3. Reload plugins
+/reload-plugins
 ```
 
 ## Commands
