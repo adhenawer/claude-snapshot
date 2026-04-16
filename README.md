@@ -87,6 +87,10 @@ Portable Claude Code setup snapshots. Export your config, plugins, hooks, and se
 2. Absolute paths (like `/Users/you/`) are normalized to `$HOME` for portability
 3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins
 
+## Privacy
+
+claude-snapshot runs entirely locally. It does not collect, transmit, or store any data outside your machine. Snapshots are saved only where you specify and are never uploaded automatically.
+
 ## License
 
 MIT
