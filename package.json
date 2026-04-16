@@ -1,0 +1,16 @@
+{
+  "name": "claude-snapshot",
+  "version": "0.1.0",
+  "description": "Portable Claude Code setup snapshots — export, diff, and apply your config across machines",
+  "type": "module",
+  "main": "src/snapshot.mjs",
+  "files": ["src/", "commands/", ".claude-plugin/"],
+  "scripts": {
+    "test": "node --test tests/snapshot.test.mjs"
+  },
+  "dependencies": {
+    "tar": "^7.0.0"
+  },
+  "keywords": ["claude-code", "plugin", "snapshot", "config", "sync"],
+  "license": "MIT"
+}

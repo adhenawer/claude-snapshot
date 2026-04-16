@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.tar.gz
+*.staging/
+.DS_Store
