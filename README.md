@@ -133,7 +133,7 @@ claude-snapshot-YYYY-MM-DD.tar.gz
 └── cache/                  # (only with --full)
 ```
 
-## Trust & Security
+## Privacy
 
 claude-snapshot is designed with reversibility and minimal blast radius in mind.
 
