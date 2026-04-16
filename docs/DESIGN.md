@@ -270,8 +270,8 @@ APPLY:   .tar.gz -> reconciler -> backup conflicts -> write files -> installer
 ## Criterios de sucesso (3 meses)
 
 - **Funcional:** export + apply produz setup identico em <2min
-- **Tracao:** 300+ stars, 50+ installs
 - **Pessoal:** uso semanal entre maquinas sem atrito
+- **Comunidade:** validado por terceiros
 
 ---
 
