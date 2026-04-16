@@ -1,4 +1,5 @@
 ---
+name: inspect
 description: Preview snapshot contents without extracting
 allowed-tools: Bash, Read
 ---
@@ -17,8 +18,7 @@ Show the contents of a Claude Code snapshot without extracting it.
 2. Run inspect via the core script:
 
 ```bash
-PLUGIN_DIR="<resolved plugin root>"
-node "${PLUGIN_DIR}/src/snapshot.mjs" inspect "$SNAPSHOT_PATH"
+node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" inspect "$SNAPSHOT_PATH"
 ```
 
 3. Parse the JSON manifest and present a readable summary:

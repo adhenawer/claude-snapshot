@@ -7,11 +7,5 @@
   },
   "repository": "https://github.com/adhenawer/claude-snapshot",
   "license": "MIT",
-  "commands": [
-    "./commands/export.md",
-    "./commands/inspect.md",
-    "./commands/diff.md",
-    "./commands/apply.md"
-  ],
   "keywords": ["snapshot", "config", "sync", "backup", "setup"]
 }

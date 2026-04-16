@@ -1,4 +1,5 @@
 ---
+name: export
 description: Export your Claude Code setup as a portable snapshot
 allowed-tools: Bash, Read
 ---
@@ -15,18 +16,16 @@ Export your complete Claude Code setup (plugins, hooks, settings, CLAUDE.md) as 
 
 ## Steps
 
-1. Determine the plugin install path by finding the directory containing this skill file
-2. Run the export via the core script:
+1. Run the export via the core script, passing any user arguments:
 
 ```bash
-PLUGIN_DIR="<resolved plugin root>"
-RESULT=$(node "${PLUGIN_DIR}/src/snapshot.mjs" export $ARGS 2>&1)
+RESULT=$(node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" export $ARGS 2>&1)
 echo "$RESULT"
 ```
 
-3. Parse the JSON result and report to the user:
+2. Parse the JSON result and report to the user:
    - Number of plugins, hooks, MDs, and marketplaces included
    - Output file path and size
    - Whether it was a slim or full export
 
-4. If `--full` was passed, note that the file may be larger (>50MB) due to plugin caches.
+3. If `--full` was passed, note that the file may be larger (>50MB) due to plugin caches.

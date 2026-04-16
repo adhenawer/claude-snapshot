@@ -1,4 +1,5 @@
 ---
+name: diff
 description: Compare a snapshot against your current Claude Code setup
 allowed-tools: Bash, Read
 ---
@@ -17,8 +18,7 @@ Compare a Claude Code snapshot against your current local setup. Shows what woul
 2. Run diff via the core script:
 
 ```bash
-PLUGIN_DIR="<resolved plugin root>"
-node "${PLUGIN_DIR}/src/snapshot.mjs" diff "$SNAPSHOT_PATH"
+node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" diff "$SNAPSHOT_PATH"
 ```
 
 3. Parse the JSON diff result and present as a readable report:

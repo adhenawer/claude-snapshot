@@ -1,4 +1,5 @@
 ---
+name: apply
 description: Apply a snapshot to this machine's Claude Code setup
 allowed-tools: Bash, Read, AskUserQuestion
 ---
@@ -18,8 +19,7 @@ Apply a Claude Code snapshot to this machine, restoring the complete setup.
 2. **First run diff** to show the user what will change:
 
 ```bash
-PLUGIN_DIR="<resolved plugin root>"
-node "${PLUGIN_DIR}/src/snapshot.mjs" diff "$SNAPSHOT_PATH"
+node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" diff "$SNAPSHOT_PATH"
 ```
 
 3. Present the diff summary and ask for confirmation:
@@ -28,8 +28,7 @@ node "${PLUGIN_DIR}/src/snapshot.mjs" diff "$SNAPSHOT_PATH"
 4. If confirmed, run apply:
 
 ```bash
-PLUGIN_DIR="<resolved plugin root>"
-node "${PLUGIN_DIR}/src/snapshot.mjs" apply "$SNAPSHOT_PATH"
+node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" apply "$SNAPSHOT_PATH"
 ```
 
 5. Report results:
