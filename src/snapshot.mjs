@@ -69,6 +69,27 @@ export function sanitizeSettings(obj) {
   return JSON.parse(replaced);
 }
 
+// Detect an exporter user-home root by scanning serialized config for
+// /Users/<name> (macOS) or /home/<name> (Linux) prefixes. Returns the most
+// frequent match or null. Used for MCP path normalization when the runtime
+// home does not match the exporter home (e.g., fixtures, CI images).
+export function detectHomeRoot(obj) {
+  const json = JSON.stringify(obj);
+  const counts = new Map();
+  const re = /\/(?:Users|home)\/[A-Za-z0-9_.-]+/g;
+  let m;
+  while ((m = re.exec(json)) !== null) {
+    counts.set(m[0], (counts.get(m[0]) || 0) + 1);
+  }
+  if (counts.size === 0) return null;
+  let best = null;
+  let bestCount = 0;
+  for (const [k, v] of counts) {
+    if (v > bestCount) { best = k; bestCount = v; }
+  }
+  return best;
+}
+
 // --- MCP server classification ---
 
 export function classifyMcpMethod(server) {
@@ -151,6 +172,8 @@ export async function collect(claudeHome) {
   const knownMarketplaces = await readJsonSafe(join(claudeHome, KNOWN_MARKETPLACES));
   const blocklist = await readJsonSafe(join(claudeHome, BLOCKLIST));
 
+  const mcpServers = await collectMcpServers(claudeHome);
+
   return {
     settings,
     globalMd,
@@ -158,13 +181,14 @@ export async function collect(claudeHome) {
     installedPlugins,
     knownMarketplaces,
     blocklist,
+    mcpServers,
   };
 }
 
 // --- Manifest builder ---
 
 export function buildManifest(collected, machineName) {
-  const { settings, globalMd, hooks, installedPlugins, knownMarketplaces } = collected;
+  const { settings, globalMd, hooks, installedPlugins, knownMarketplaces, mcpServers } = collected;
 
   // Build plugin list from installed_plugins.json
   const plugins = [];
@@ -204,6 +228,13 @@ export function buildManifest(collected, machineName) {
   for (const hook of hooks) {
     checksums[`hooks/${hook.name}`] = sha256(hook.content);
   }
+  if (mcpServers && mcpServers.length > 0) {
+    const mcpJson = JSON.stringify(
+      Object.fromEntries(mcpServers.map(s => [s.name, { command: s.command, args: s.args, env: s.env }])),
+      null, 2
+    );
+    checksums['mcp-servers.json'] = sha256(mcpJson);
+  }
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -213,6 +244,7 @@ export function buildManifest(collected, machineName) {
     marketplaces,
     hooks: hooks.map(h => `hooks/${h.name}`),
     globalMd: globalMd.map(m => m.name),
+    mcpServers: (mcpServers || []).map(s => ({ name: s.name, method: s.method })),
     checksums,
   };
 }
@@ -277,6 +309,27 @@ export async function exportSnapshot(claudeHome, outputPath, options = {}) {
         JSON.stringify(collected.blocklist, null, 2));
     }
 
+    // Write MCP servers (path-normalized).
+    // MCP paths reflect the exporting user's home. Normalize against the
+    // computed userHome first; also strip any remaining /Users/<name> or
+    // /home/<name> prefix that matches a detected home root, so snapshots
+    // captured from a differently-named home (fixtures, CI containers)
+    // remain portable.
+    if (collected.mcpServers && collected.mcpServers.length > 0) {
+      const mcpDict = Object.fromEntries(
+        collected.mcpServers.map(s => [s.name, { command: s.command, args: s.args, env: s.env }])
+      );
+      let normalizedMcp = normalizePaths(mcpDict, userHome);
+      const detected = detectHomeRoot(normalizedMcp);
+      if (detected) {
+        normalizedMcp = normalizePaths(normalizedMcp, detected);
+      }
+      await writeFile(
+        join(stagingDir, 'mcp-servers.json'),
+        JSON.stringify(normalizedMcp, null, 2)
+      );
+    }
+
     // Build list of entries to include
     const entries = ['manifest.json'];
     if (normalizedSettings) entries.push('settings.json');
@@ -285,6 +338,9 @@ export async function exportSnapshot(claudeHome, outputPath, options = {}) {
     // Always include plugins dir if any manifest exists
     if (collected.installedPlugins || collected.knownMarketplaces || collected.blocklist) {
       entries.push('plugins');
+    }
+    if (collected.mcpServers && collected.mcpServers.length > 0) {
+      entries.push('mcp-servers.json');
     }
 
     // Create tarball

@@ -68,6 +68,13 @@ describe('collector', () => {
     assert.ok(pluginNames.includes('context7@claude-plugins-official'),
       'should include user-scoped plugins');
   });
+
+  it('collects MCP servers', async () => {
+    const { collect } = await import('../src/snapshot.mjs');
+    const result = await collect(FIXTURES);
+    assert.equal(result.mcpServers.length, 3);
+    assert.ok(result.mcpServers.some(s => s.name === 'filesystem'));
+  });
 });
 
 // --- buildManifest tests ---
@@ -98,6 +105,18 @@ describe('buildManifest', () => {
     const manifest = buildManifest(collected, 'test-machine');
     assert.ok(manifest.checksums['settings.json'], 'should have settings checksum');
     assert.ok(manifest.checksums['hooks/test-hook.sh'], 'should have hook checksum');
+  });
+
+  it('includes MCP server identities in manifest', async () => {
+    const { collect, buildManifest } = await import('../src/snapshot.mjs');
+    const collected = await collect(FIXTURES);
+    const manifest = buildManifest(collected, 'test-machine');
+    assert.ok(Array.isArray(manifest.mcpServers));
+    assert.equal(manifest.mcpServers.length, 3);
+    const fs = manifest.mcpServers.find(s => s.name === 'filesystem');
+    assert.equal(fs.method, 'npm');
+    assert.ok(manifest.checksums['mcp-servers.json'],
+      'manifest should checksum mcp-servers.json');
   });
 });
 
@@ -383,6 +402,28 @@ describe('exportSnapshot', () => {
       assert.ok(entries.includes('global-md/RTK.md'));
       assert.ok(entries.includes('hooks/test-hook.sh'));
       assert.ok(entries.some(e => e.includes('installed_plugins.json')));
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('tarball contains mcp-servers.json with $HOME-normalized paths', async () => {
+    const { exportSnapshot, listTarEntries } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-mcp-'));
+    try {
+      const outputPath = join(tempDir, 'snap.tar.gz');
+      await exportSnapshot(FIXTURES, outputPath, { machineName: 'test' });
+      const entries = await listTarEntries(outputPath);
+      assert.ok(entries.includes('mcp-servers.json'), 'mcp-servers.json should be in tarball');
+
+      // Extract and verify content
+      const extractDir = join(tempDir, 'extract');
+      await mkdir(extractDir, { recursive: true });
+      await tar.extract({ file: outputPath, cwd: extractDir });
+      const mcpContent = await readFile(join(extractDir, 'mcp-servers.json'), 'utf-8');
+      assert.ok(mcpContent.includes('$HOME'), 'paths should be normalized to $HOME');
+      assert.ok(!mcpContent.includes('/Users/testuser'), 'literal /Users/testuser must not remain');
     } finally {
       await rm(tempDir, { recursive: true });
     }
