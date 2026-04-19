@@ -33,15 +33,6 @@ Design decisions in this plugin are evaluated against these principles.
 
 **[P5] Cross-Platform First-Class**: the plugin is Node.js, not bash. It runs the same on macOS and Linux without polyfills, different code paths, or GNU-coreutils assumptions. Windows via WSL is supported; native Windows is best-effort.
 
-## Prior art
-
-| Project | What it does | claude-snapshot adds |
-|---|---|---|
-| [`claude-code-dotfiles`](https://github.com/elizabethfuentes12/claude-code-dotfiles) | Git wrapper around `~/.claude/` | Structured manifest, `diff`, `inspect`, automated plugin reinstall |
-| `.claude` dotfiles repos (various) | Copy-paste setup templates | Automated export/apply instead of manual curation |
-| `claude-code-sync` (npm) | Session & usage tracking | Focuses on *configuration*, not session history |
-| `claude-code-config` (npm) | Proxy / permission switcher | Full setup capture, not just permissions |
-
 ## Prerequisites
 
 - Claude Code with plugin support
