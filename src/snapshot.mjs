@@ -52,6 +52,21 @@ export function resolvePaths(obj, homeDir) {
   return JSON.parse(replaced);
 }
 
+// normalizePaths rewrites <user-home> → $HOME, but some paths stay
+// machine-specific afterwards — notably nvm-managed Node binaries which pin
+// a Node version (e.g. `$HOME/.nvm/versions/node/v25.6.0/bin/node`) that
+// rarely exists on the target. Rewrite those to `node` so the target shell
+// resolves them from PATH instead.
+export function sanitizeSettings(obj) {
+  if (!obj) return obj;
+  const json = JSON.stringify(obj);
+  const replaced = json.replace(
+    /\$HOME\/\.nvm\/versions\/node\/[^/"\s]+\/bin\/node/g,
+    'node'
+  );
+  return JSON.parse(replaced);
+}
+
 // --- Collector ---
 
 export async function collect(claudeHome) {
@@ -178,9 +193,10 @@ export async function exportSnapshot(claudeHome, outputPath, options = {}) {
   // claudeHome is the .claude directory; the user home is its parent
   const userHome = dirname(claudeHome);
 
-  // Normalize paths in settings
+  // Normalize paths in settings, then sanitize machine-specific absolute
+  // paths that survive $HOME normalization (e.g. nvm Node binary pins).
   const normalizedSettings = collected.settings
-    ? normalizePaths(collected.settings, userHome)
+    ? sanitizeSettings(normalizePaths(collected.settings, userHome))
     : null;
 
   // Create temp staging dir
@@ -441,7 +457,11 @@ export async function applySnapshot(tarPath, claudeHome, options = {}) {
       for (const plugin of manifest.plugins) {
         const pluginId = `${plugin.name}@${plugin.marketplace}`;
         try {
-          execSync(`claude plugin add ${pluginId}`, { stdio: 'inherit' });
+          // Route child output to our stderr so the user sees install
+          // progress without polluting the JSON we print on stdout.
+          execSync(`claude plugin install ${pluginId}`, {
+            stdio: ['ignore', process.stderr, process.stderr],
+          });
         } catch (e) {
           console.error(`Warning: failed to install ${pluginId}: ${e.message}`);
         }

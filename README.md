@@ -116,7 +116,7 @@ flowchart LR
 
 1. **Export** reads `~/.claude/` and writes a `.tar.gz` with a `manifest.json` index.
 2. Absolute paths (like `/Users/you/`) are normalized to `$HOME` for portability.
-3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins via `claude plugin add`.
+3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins via `claude plugin install`.
 
 ### Snapshot anatomy
 

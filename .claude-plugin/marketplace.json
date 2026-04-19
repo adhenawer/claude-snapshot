@@ -8,7 +8,7 @@
     {
       "name": "snapshot",
       "source": "./",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Export and apply portable snapshots of your Claude Code setup across machines",
       "category": "utilities",
       "tags": ["snapshot", "config", "sync", "backup"]

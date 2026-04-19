@@ -139,6 +139,110 @@ describe('path normalization', () => {
   });
 });
 
+// --- sanitizeSettings tests ---
+
+describe('sanitizeSettings', () => {
+  it('rewrites nvm-pinned node binary to PATH-resolved node', async () => {
+    const { sanitizeSettings } = await import('../src/snapshot.mjs');
+    const settings = {
+      statusLine: {
+        type: 'command',
+        command: 'exec "$HOME/.nvm/versions/node/v25.6.0/bin/node" script.js'
+      }
+    };
+    const sanitized = sanitizeSettings(settings);
+    assert.equal(
+      sanitized.statusLine.command,
+      'exec "node" script.js',
+      'nvm-pinned node path must become plain `node`'
+    );
+  });
+
+  it('handles multiple nvm node references in the same value', async () => {
+    const { sanitizeSettings } = await import('../src/snapshot.mjs');
+    const settings = {
+      statusLine: {
+        command: '$HOME/.nvm/versions/node/v20.0.0/bin/node a.js && $HOME/.nvm/versions/node/v22.1.0/bin/node b.js'
+      }
+    };
+    const sanitized = sanitizeSettings(settings);
+    assert.equal(sanitized.statusLine.command, 'node a.js && node b.js');
+  });
+
+  it('leaves non-nvm paths untouched', async () => {
+    const { sanitizeSettings } = await import('../src/snapshot.mjs');
+    const settings = {
+      statusLine: { command: '$HOME/.claude/hooks/status.sh' },
+      env: { PATH: '/usr/local/bin:/usr/bin' }
+    };
+    const sanitized = sanitizeSettings(settings);
+    assert.equal(sanitized.statusLine.command, '$HOME/.claude/hooks/status.sh');
+    assert.equal(sanitized.env.PATH, '/usr/local/bin:/usr/bin');
+  });
+
+  it('handles null settings without throwing', async () => {
+    const { sanitizeSettings } = await import('../src/snapshot.mjs');
+    assert.equal(sanitizeSettings(null), null);
+  });
+
+  it('sanitizes settings end-to-end through exportSnapshot', async () => {
+    const { exportSnapshot } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-sanitize-'));
+    try {
+      // Simulate the real layout: ~/.claude and ~/.nvm sit as siblings under
+      // the user home. exportSnapshot takes dirname(claudeHome) as userHome,
+      // so placing both under tempDir gets the exporter home normalized to
+      // $HOME, and the nvm path becomes $HOME/.nvm/... — ready for rewrite.
+      const srcHome = join(tempDir, '.claude');
+      await mkdir(join(srcHome, 'plugins'), { recursive: true });
+      await writeFile(join(srcHome, 'settings.json'), JSON.stringify({
+        statusLine: {
+          type: 'command',
+          command: `exec "${tempDir}/.nvm/versions/node/v25.6.0/bin/node" idx.js`
+        }
+      }));
+      await writeFile(join(srcHome, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+
+      const tarPath = join(tempDir, 'snap.tar.gz');
+      await exportSnapshot(srcHome, tarPath, { machineName: 'test' });
+
+      const extractDir = join(tempDir, 'extracted');
+      await mkdir(extractDir, { recursive: true });
+      await tar.extract({ file: tarPath, cwd: extractDir });
+
+      const settings = JSON.parse(
+        await readFile(join(extractDir, 'settings.json'), 'utf-8')
+      );
+      assert.ok(
+        !settings.statusLine.command.includes('.nvm/versions/node'),
+        `exported settings must not retain nvm node path: ${settings.statusLine.command}`
+      );
+      assert.ok(settings.statusLine.command.includes('"node"'));
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+});
+
+// --- Apply CLI command tests ---
+
+describe('apply plugin install command', () => {
+  it('uses `claude plugin install`, not the removed `claude plugin add`', async () => {
+    const srcPath = resolve(__dirname, '../src/snapshot.mjs');
+    const source = await readFile(srcPath, 'utf-8');
+    assert.ok(
+      source.includes('claude plugin install '),
+      'apply must shell out to `claude plugin install`'
+    );
+    assert.ok(
+      !/claude plugin add\s/.test(source),
+      '`claude plugin add` is not a valid CLI subcommand — regression guard'
+    );
+  });
+});
+
 // --- Export tests ---
 
 describe('exportSnapshot', () => {

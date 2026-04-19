@@ -120,7 +120,7 @@ Sequencia de apply:
 1. Backup de arquivos que serao sobrescritos (`.bak`)
 2. Copiar `settings.json`, MDs globais, hooks
 3. Registrar marketplaces extras
-4. Instalar plugins via `claude plugin add`
+4. Instalar plugins via `claude plugin install`
 5. Com `--full`: copiar caches ao inves de baixar
 
 ---
@@ -217,11 +217,11 @@ APPLY:   .tar.gz -> reconciler -> backup conflicts -> write files -> installer
 |---|---|---|
 | Formato do arquivo | `.tar.gz` | Universal, diffavel, suporta binarios |
 | Manifest dentro do tar | Sim, primeiro entry | `tar.list()` le sem extrair tudo |
-| Plugin install no apply | Shell exec `claude plugin add` | Nao reimplementar logica de install |
+| Plugin install no apply | Shell exec `claude plugin install` | Nao reimplementar logica de install |
 | Conflito de arquivos | Backup `.bak` + aviso | Seguro, reversivel |
 | Plugins project-scoped | Ignorados no export | Sao do projeto, nao do setup |
 | Paths absolutos em hooks | Normalizar `$HOME` | Export: `/Users/adhenawer/` -> `$HOME/`. Apply: resolve pro `$HOME` local |
-| Paths com versao de runtime (nvm, etc) | Warning no apply | StatusLine pode ter `/Users/x/.nvm/.../node`; export normaliza `$HOME` mas avisa que versao do node pode diferir entre maquinas |
+| Paths com versao de runtime (nvm, etc) | Reescrita no export | StatusLine pode ter `/Users/x/.nvm/versions/node/vX.Y.Z/bin/node`; export reescreve para `node` (usa PATH do destino) pra evitar falha silenciosa quando a versao nao existe na outra maquina |
 
 ---
 
@@ -281,5 +281,5 @@ APPLY:   .tar.gz -> reconciler -> backup conflicts -> write files -> installer
 |---|---|---|
 | Anthropic adiciona sync nativo | Media | Focar em features que Anthropic nao faria (diff, inspect, offline) |
 | Estrutura de `~/.claude/` muda entre versoes | Alta | Manifest versionado; detect breaking changes no apply |
-| `claude plugin add` CLI muda de interface | Media | Wrapper isolado em `installer.ts`; facil de atualizar |
+| `claude plugin install` CLI muda de interface | Media | Wrapper isolado em `installer.ts`; facil de atualizar |
 | Hooks com dependencias externas (ex: RTK binario) | Baixa | Documentar que o snapshot copia scripts, nao dependencias do sistema |
