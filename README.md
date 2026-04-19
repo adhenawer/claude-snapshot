@@ -19,6 +19,20 @@
 - **Safe rollback** — About to experiment with new plugins or risky config changes? Take a snapshot first. If things break, apply the snapshot and you're back to a known good state.
 - **Onboarding** — New team member? Share your team's snapshot and they're up and running with the same plugins, hooks, and conventions.
 
+## Principles
+
+Design decisions in this plugin are evaluated against these principles.
+
+**[P1] Minimal Blast Radius**: one-shot commands, no daemon, no background watch, no network. Every side effect is triggered by an explicit user command and scoped to `~/.claude/` plus the output tarball path.
+
+**[P2] Allowlist Over Denylist**: snapshots contain an explicit list of artifacts (settings, `CLAUDE.md`, hooks, plugin manifests, MCP servers). New files Claude Code adds in future versions are NOT auto-captured — plugin updates decide what gets included. This is the opposite trade-off from wholesale-capture tools; we pay with manual maintenance and gain predictable, auditable snapshot contents.
+
+**[P3] No Network, Ever**: export and apply are local-only. Plugin reinstallation during apply delegates to Claude Code's own `/plugin install` mechanism, which manages network access itself. claude-snapshot makes zero outbound requests.
+
+**[P4] Diff Before Destroy**: every `apply` is preceded by a diff summary the user must acknowledge. Every overwritten file is first copied to `<file>.bak`. Snapshot contents are always inspectable without extraction via `/snapshot:inspect`.
+
+**[P5] Cross-Platform First-Class**: the plugin is Node.js, not bash. It runs the same on macOS and Linux without polyfills, different code paths, or GNU-coreutils assumptions. Windows via WSL is supported; native Windows is best-effort.
+
 ## Prior art
 
 | Project | What it does | claude-snapshot adds |
