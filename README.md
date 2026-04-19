@@ -4,6 +4,10 @@
 
 **Portable Claude Code setup snapshots.** Export your config, plugins, hooks, and global instructions — apply on another machine in under 2 minutes.
 
+[![CI](https://github.com/adhenawer/claude-snapshot/actions/workflows/test.yml/badge.svg)](https://github.com/adhenawer/claude-snapshot/actions/workflows/test.yml)
+[![Tests](https://img.shields.io/badge/tests-57%20passing-brightgreen)](https://github.com/adhenawer/claude-snapshot/actions/workflows/test.yml)
+[![Last commit](https://img.shields.io/github/last-commit/adhenawer/claude-snapshot)](https://github.com/adhenawer/claude-snapshot/commits/main)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757.svg)](https://docs.anthropic.com/en/docs/claude-code)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A518-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
