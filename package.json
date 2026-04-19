@@ -1,6 +1,6 @@
 {
   "name": "claude-snapshot",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Portable Claude Code setup snapshots — export, diff, and apply your config across machines",
   "type": "module",
   "main": "src/snapshot.mjs",

@@ -960,6 +960,109 @@ describe('round-trip: export -> inspect -> diff -> apply', () => {
   });
 });
 
+// --- CLI pretty formatters ---
+
+describe('renderExport', () => {
+  it('includes path, counts, and apply hint', async () => {
+    const { renderExport } = await import('../src/snapshot.mjs');
+    const out = renderExport({
+      path: '/tmp/test-snap.tar.gz',
+      plugins: 3, hooks: 1, globalMd: 2, marketplaces: 1,
+    });
+    assert.match(out, /Snapshot written/);
+    assert.match(out, /3 plugins · 1 hooks · 2 global MDs · 1 marketplaces/);
+    assert.match(out, /npx -y claude-snapshot apply/);
+  });
+});
+
+describe('renderDiff', () => {
+  it('shows success banner when nothing differs', async () => {
+    const { renderDiff } = await import('../src/snapshot.mjs');
+    const out = renderDiff({
+      plugins: { added: [], matched: [{ name: 'x', marketplace: 'y', version: '1' }], versionMismatch: [] },
+      hooks: { added: [], matched: ['h.sh'] },
+      globalMd: { added: [], matched: ['CLAUDE.md'], changed: [] },
+      settings: { added: [], changed: [], matched: ['settings.json'] },
+      mcpServers: { added: [], matched: [] },
+    }, {});
+    assert.match(out, /already matches your setup/);
+    assert.match(out, /Nothing to apply/);
+  });
+
+  it('shows + marker for added plugins, ~ for version mismatch', async () => {
+    const { renderDiff } = await import('../src/snapshot.mjs');
+    const out = renderDiff({
+      plugins: {
+        added: [{ name: 'newp', marketplace: 'mkt', version: '1.0' }],
+        matched: [],
+        versionMismatch: [{ name: 'old', marketplace: 'mkt', version: '2.0', localVersion: '1.5' }],
+      },
+      hooks: { added: [], matched: [] },
+      globalMd: { added: [], matched: [], changed: [] },
+      settings: { added: [], changed: [], matched: [] },
+      mcpServers: { added: [], matched: [] },
+    }, {});
+    assert.match(out, /\+ newp@mkt  1\.0/);
+    assert.match(out, /~ old@mkt  2\.0 \(local: 1\.5\)/);
+    assert.match(out, /Apply with: npx -y claude-snapshot apply/);
+  });
+
+  it('lists missing MCPs with method', async () => {
+    const { renderDiff } = await import('../src/snapshot.mjs');
+    const out = renderDiff({
+      plugins: { added: [], matched: [], versionMismatch: [] },
+      hooks: { added: [], matched: [] },
+      globalMd: { added: [], matched: [], changed: [] },
+      settings: { added: [], changed: [], matched: [] },
+      mcpServers: { added: [{ name: 'fs', method: 'npm' }, { name: 'git', method: 'pip' }], matched: [] },
+    }, {});
+    assert.match(out, /\+ fs \(npm\)/);
+    assert.match(out, /\+ git \(pip\)/);
+  });
+});
+
+describe('renderInspect', () => {
+  it('shows schema, timestamp, machine, and plugin list', async () => {
+    const { renderInspect } = await import('../src/snapshot.mjs');
+    const out = renderInspect({
+      schemaVersion: '1.0.0',
+      exportedAt: '2026-04-19T10:00:00Z',
+      exportedFrom: 'test-machine',
+      plugins: [{ name: 'p1', marketplace: 'm1', version: '1.0', scope: 'user' }],
+      hooks: ['hooks/h.sh'],
+      globalMd: ['CLAUDE.md'],
+      marketplaces: [{ name: 'm1' }],
+      mcpServers: [],
+    }, '/tmp/snap.tar.gz');
+    assert.match(out, /Schema:\s+1\.0\.0/);
+    assert.match(out, /test-machine/);
+    assert.match(out, /p1@m1  1\.0/);
+    assert.match(out, /MCP servers \(0\)/);
+  });
+});
+
+describe('renderApply', () => {
+  it('prints install hints per MCP method', async () => {
+    const { renderApply } = await import('../src/snapshot.mjs');
+    const out = renderApply({
+      plugins: [{ name: 'p1' }],
+      hooks: ['hooks/h.sh'],
+      globalMd: ['CLAUDE.md'],
+      mcpReport: {
+        missing: [
+          { name: 'fs', method: 'npm' },
+          { name: 'git', method: 'pip' },
+        ],
+        matched: [],
+      },
+    }, '/tmp/snap.tar.gz');
+    assert.match(out, /Snapshot applied/);
+    assert.match(out, /fs.*\(npm\).*claude mcp add/);
+    assert.match(out, /git.*\(pip\).*uvx/);
+    assert.match(out, /Restart Claude Code/);
+  });
+});
+
 // --- Golden manifest shape contract ---
 
 describe('golden manifest shape', () => {

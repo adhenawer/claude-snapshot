@@ -75,6 +75,8 @@ npx -y claude-snapshot apply   <path>
 
 Useful for one-off backups, CI, or trying the tool before adding the plugin to your Claude Code setup.
 
+The CLI prints a human-readable summary on an interactive terminal and a single JSON line when piped — pass `--json` to force JSON in a terminal.
+
 ## Commands
 
 | Command | Description |

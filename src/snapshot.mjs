@@ -612,6 +612,191 @@ export async function applySnapshot(tarPath, claudeHome, options = {}) {
   }
 }
 
+// --- CLI output formatters ---
+
+function tildeHome(path) {
+  const home = homedir();
+  return path.startsWith(home) ? '~' + path.slice(home.length) : path;
+}
+
+export function renderExport(r) {
+  const stats = `${r.plugins} plugins · ${r.hooks} hooks · ${r.globalMd} global MDs · ${r.marketplaces} marketplaces`;
+  return [
+    `✓ Snapshot written to ${tildeHome(r.path)}`,
+    '',
+    '  ' + stats,
+    '',
+    'Apply on another machine:',
+    `  npx -y claude-snapshot apply ${tildeHome(r.path)}`,
+  ].join('\n');
+}
+
+export function renderInspect(manifest, tarPath) {
+  const lines = [];
+  lines.push(`Snapshot: ${tildeHome(tarPath)}`);
+  lines.push(`  Schema:   ${manifest.schemaVersion}`);
+  lines.push(`  Exported: ${manifest.exportedAt}`);
+  lines.push(`  From:     ${manifest.exportedFrom}`);
+  lines.push('');
+
+  lines.push(`Plugins (${manifest.plugins.length})`);
+  for (const p of manifest.plugins) {
+    lines.push(`  ${p.name}@${p.marketplace}  ${p.version}`);
+  }
+
+  if (manifest.hooks && manifest.hooks.length > 0) {
+    lines.push('');
+    lines.push(`Hooks (${manifest.hooks.length})`);
+    for (const h of manifest.hooks) {
+      lines.push(`  ${h.replace(/^hooks\//, '')}`);
+    }
+  }
+
+  if (manifest.globalMd && manifest.globalMd.length > 0) {
+    lines.push('');
+    lines.push(`Global MDs (${manifest.globalMd.length})`);
+    for (const m of manifest.globalMd) lines.push(`  ${m}`);
+  }
+
+  if (manifest.marketplaces && manifest.marketplaces.length > 0) {
+    lines.push('');
+    lines.push(`Marketplaces (${manifest.marketplaces.length})`);
+    for (const m of manifest.marketplaces) lines.push(`  ${m.name}`);
+  }
+
+  const mcps = manifest.mcpServers || [];
+  lines.push('');
+  lines.push(`MCP servers (${mcps.length})`);
+  for (const s of mcps) lines.push(`  ${s.name} (${s.method})`);
+
+  return lines.join('\n');
+}
+
+export function renderDiff(diff, manifest) {
+  const p = diff.plugins;
+  const h = diff.hooks;
+  const m = diff.globalMd;
+  const s = diff.settings;
+  const mcp = diff.mcpServers || { added: [], matched: [] };
+
+  const hasChanges = (
+    p.added.length || p.versionMismatch.length ||
+    h.added.length ||
+    m.added.length || m.changed.length ||
+    s.changed.length ||
+    mcp.added.length
+  );
+
+  const lines = [];
+
+  if (!hasChanges) {
+    lines.push('✓ Everything in this snapshot already matches your setup.');
+    lines.push('');
+    lines.push(`  ${p.matched.length} plugins matched`);
+    lines.push(`  ${h.matched.length} hooks matched`);
+    lines.push(`  ${m.matched.length} global MDs matched`);
+    lines.push(`  Settings ${s.matched.length ? 'matched' : '(no snapshot settings)'}`);
+    lines.push(`  MCP servers: ${mcp.matched.length} matched, ${mcp.added.length} missing`);
+    lines.push('');
+    lines.push('Nothing to apply.');
+    return lines.join('\n');
+  }
+
+  lines.push('Diff against ~/.claude/:');
+  lines.push('');
+
+  if (p.added.length || p.versionMismatch.length) {
+    const bits = [];
+    if (p.added.length) bits.push(`${p.added.length} new`);
+    if (p.versionMismatch.length) bits.push(`${p.versionMismatch.length} version mismatch`);
+    if (p.matched.length) bits.push(`${p.matched.length} matched`);
+    lines.push(`Plugins (${bits.join(', ')})`);
+    for (const x of p.added) lines.push(`  + ${x.name}@${x.marketplace}  ${x.version}`);
+    for (const x of p.versionMismatch) {
+      lines.push(`  ~ ${x.name}@${x.marketplace}  ${x.version} (local: ${x.localVersion})`);
+    }
+    lines.push('');
+  }
+
+  if (h.added.length) {
+    const suffix = h.matched.length ? `, ${h.matched.length} matched` : '';
+    lines.push(`Hooks (${h.added.length} new${suffix})`);
+    for (const name of h.added) lines.push(`  + ${name}`);
+    lines.push('');
+  }
+
+  if (m.added.length || m.changed.length) {
+    const bits = [];
+    if (m.added.length) bits.push(`${m.added.length} new`);
+    if (m.changed.length) bits.push(`${m.changed.length} changed`);
+    if (m.matched.length) bits.push(`${m.matched.length} matched`);
+    lines.push(`Global MDs (${bits.join(', ')})`);
+    for (const name of m.added) lines.push(`  + ${name}`);
+    for (const name of m.changed) {
+      lines.push(`  ~ ${name} (content differs — local will be backed up to .bak)`);
+    }
+    lines.push('');
+  }
+
+  if (s.changed.length) {
+    lines.push('Settings: changed (local will be backed up to .bak)');
+    lines.push('');
+  }
+
+  if (mcp.added.length) {
+    const suffix = mcp.matched.length ? `, ${mcp.matched.length} already installed` : '';
+    lines.push(`MCP servers (${mcp.added.length} missing${suffix})`);
+    for (const x of mcp.added) lines.push(`  + ${x.name} (${x.method})`);
+    lines.push('');
+  }
+
+  lines.push('Apply with: npx -y claude-snapshot apply <snapshot.tar.gz>');
+  return lines.join('\n');
+}
+
+export function renderApply(result, tarPath) {
+  const mcps = result.mcpReport || { missing: [], matched: [] };
+  const lines = [];
+
+  lines.push(`✓ Snapshot applied from ${tildeHome(tarPath)}`);
+  lines.push('');
+  lines.push(`  ${result.plugins.length} plugins (install triggered)`);
+  lines.push(`  ${(result.hooks || []).length} hooks restored`);
+  lines.push(`  ${(result.globalMd || []).length} global MDs written`);
+  lines.push('');
+
+  if (mcps.missing.length) {
+    const methodHint = {
+      npm: 'install via `claude mcp add <name> npx -y <package>`',
+      pip: 'install via `uvx <package>` or your pipx/uv equivalent',
+      binary: 'confirm the binary exists locally or install it',
+      manual: "refer to the server's source documentation",
+    };
+    lines.push(`MCP servers needing manual install (${mcps.missing.length}):`);
+    const widest = Math.max(...mcps.missing.map(s => s.name.length));
+    for (const s of mcps.missing) {
+      const pad = ' '.repeat(Math.max(0, widest - s.name.length));
+      lines.push(`  ${s.name}${pad}  (${s.method})  →  ${methodHint[s.method] || methodHint.manual}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Restart Claude Code (or run /reload-plugins) for plugin changes to take effect.');
+  return lines.join('\n');
+}
+
+function shouldOutputJson(args) {
+  return args.includes('--json') || !process.stdout.isTTY;
+}
+
+function writeOutput(args, jsonData, prettyFn) {
+  if (shouldOutputJson(args)) {
+    console.log(JSON.stringify(jsonData));
+  } else {
+    console.log(prettyFn());
+  }
+}
+
 // --- CLI entry point ---
 
 async function cli() {
@@ -629,7 +814,7 @@ async function cli() {
         ? resolve(args[outputIdx + 1])
         : join(homedir(), defaultName);
       const manifest = await exportSnapshot(claudeHome, outputPath, { full });
-      console.log(JSON.stringify({
+      const data = {
         status: 'ok',
         path: outputPath,
         plugins: manifest.plugins.length,
@@ -637,14 +822,15 @@ async function cli() {
         globalMd: manifest.globalMd.length,
         marketplaces: manifest.marketplaces.length,
         full,
-      }));
+      };
+      writeOutput(args, data, () => renderExport(data));
       break;
     }
 
     case 'inspect': {
       const tarPath = resolve(args[0]);
       const manifest = await readManifestFromTar(tarPath);
-      console.log(JSON.stringify({ status: 'ok', manifest }));
+      writeOutput(args, { status: 'ok', manifest }, () => renderInspect(manifest, tarPath));
       break;
     }
 
@@ -652,24 +838,24 @@ async function cli() {
       const tarPath = resolve(args[0]);
       const manifest = await readManifestFromTar(tarPath);
       const diff = await diffSnapshot(manifest, claudeHome);
-      console.log(JSON.stringify({ status: 'ok', diff, manifest }));
+      writeOutput(args, { status: 'ok', diff, manifest }, () => renderDiff(diff, manifest));
       break;
     }
 
     case 'apply': {
       const tarPath = resolve(args[0]);
       const result = await applySnapshot(tarPath, claudeHome);
-      console.log(JSON.stringify({
-        status: 'ok',
-        manifest: result,
-        mcpReport: result.mcpReport,
-      }));
+      writeOutput(
+        args,
+        { status: 'ok', manifest: result, mcpReport: result.mcpReport },
+        () => renderApply(result, tarPath)
+      );
       break;
     }
 
     default:
       console.error(`Unknown command: ${command}`);
-      console.error('Usage: snapshot.mjs <export|inspect|diff|apply> [args]');
+      console.error('Usage: claude-snapshot <export|inspect|diff|apply> [--json]');
       process.exit(1);
   }
 }
