@@ -113,6 +113,7 @@ Design decisions in this plugin are evaluated against these principles.
 | `CLAUDE.md` + other global `.md` files | Yes |
 | Plugin manifests + marketplace registrations | Yes |
 | Hook scripts | Yes |
+| MCP servers (from `~/.claude.json`, `mcpServers` key only — OAuth tokens excluded) | Yes (report only on apply) |
 | Plugin caches (with `--full`) | Yes |
 | Sessions, history, telemetry | No |
 | Project-scoped plugins | No |
@@ -131,13 +132,15 @@ flowchart LR
 1. **Export** reads `~/.claude/` and writes a `.tar.gz` with a `manifest.json` index.
 2. Absolute paths (like `/Users/you/`) are normalized to `$HOME` for portability.
 3. **Apply** extracts the snapshot, resolves `$HOME` for the target machine, backs up any conflicting files as `.bak`, and installs missing plugins via `claude plugin install`.
+4. **MCP servers** are captured from `~/.claude.json` (the `mcpServers` key only) and included in the tarball. On apply, claude-snapshot *reports* which MCPs need installation on the target machine — it does NOT auto-write `~/.claude.json` because that file also holds OAuth tokens and project state.
 
 ### Snapshot anatomy
 
 ```
 claude-snapshot-YYYY-MM-DD.tar.gz
-├── manifest.json           # plugins, marketplaces, hooks, MDs, checksums
+├── manifest.json           # schemaVersion, plugins, marketplaces, hooks, MDs, MCPs, checksums
 ├── settings.json           # your Claude Code settings
+├── mcp-servers.json        # MCP server configs (only if you have any; path-normalized)
 ├── global-md/              # CLAUDE.md and other root-level .md files
 ├── hooks/                  # your custom hook scripts
 ├── plugins/

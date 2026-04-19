@@ -283,3 +283,33 @@ APPLY:   .tar.gz -> reconciler -> backup conflicts -> write files -> installer
 | Estrutura de `~/.claude/` muda entre versoes | Alta | Manifest versionado; detect breaking changes no apply |
 | `claude plugin install` CLI muda de interface | Media | Wrapper isolado em `installer.ts`; facil de atualizar |
 | Hooks com dependencias externas (ex: RTK binario) | Baixa | Documentar que o snapshot copia scripts, nao dependencias do sistema |
+
+---
+
+## AD7 — MCP scope: capture `mcpServers` key only, not entire `.claude.json`
+
+**Context.** `~/.claude.json` contains `mcpServers`, OAuth tokens, per-project allowed-tools lists, session history pointers, and analytics caches. Users asked for MCP portability.
+
+**Decision.** Read `~/.claude.json`, extract only the `mcpServers` sub-tree, discard the rest, and write the extracted MCPs to `mcp-servers.json` in the tarball. OAuth tokens and project state never leave the machine.
+
+**Consequences.** MCP portability works for the overwhelmingly common case (stateless server configs). Server-specific secrets embedded in `env` blocks still travel in the snapshot — users who put API keys in MCP `env` should use `--exclude-mcp` (backlog) or keep secrets in a separate mechanism.
+
+---
+
+## AD8 — Manifest field: `schemaVersion` over `version`
+
+**Context.** The original manifest field `version: '1.0.0'` was ambiguous — is it the plugin version, the snapshot format, or the machine config version?
+
+**Decision.** Rename to `schemaVersion`. Introduce `SCHEMA_VERSION` and `SUPPORTED_SCHEMA_MAJOR` constants. Read path normalizes a legacy `version` field (v0.1 tarballs) into `schemaVersion`. Major version mismatches throw a clear error directing the user to upgrade claude-snapshot or re-export.
+
+**Consequences.** Future format changes are versionable without ambiguity. v0.1 snapshots remain readable. Downstream tooling (if anyone builds any) has a stable contract.
+
+---
+
+## AD9 — MCP apply: report, do not write
+
+**Context.** `~/.claude.json` is a shared file holding OAuth tokens, session state, and project allowed-tools lists — not just MCP configs. Overwriting it on apply would clobber user-specific state in ways that vary across machines.
+
+**Decision.** On apply, read the snapshot's `mcp-servers.json` and produce an `mcpReport` summary (`missing`, `matched`). The skill surfaces this to the user along with install-method guidance (`npm`/`pip`/`binary`/`manual`). The plugin does NOT modify `~/.claude.json`. A future `--with-mcp` flag (v0.3) could opt the user into write-through with `.bak` backup.
+
+**Consequences.** Users do one extra step after apply (install MCPs via `claude mcp add ...` or equivalent). This matches P4 (diff before destroy) and avoids a category of destructive failure modes.
