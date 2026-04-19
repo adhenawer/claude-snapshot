@@ -44,6 +44,8 @@ Design decisions in this plugin are evaluated against these principles.
 
 ## Install
 
+### As a Claude Code plugin (recommended)
+
 ```bash
 # 1. Register the marketplace
 /plugin marketplace add adhenawer/claude-snapshot
@@ -54,6 +56,19 @@ Design decisions in this plugin are evaluated against these principles.
 # 3. Reload plugins
 /reload-plugins
 ```
+
+### Try without installing (via npx)
+
+Run any command directly from the npm registry — no marketplace registration, no install, no reload:
+
+```bash
+npx claude-snapshot@latest export --output ~/snapshot.tar.gz
+npx claude-snapshot@latest inspect ~/snapshot.tar.gz
+npx claude-snapshot@latest diff ~/snapshot.tar.gz
+npx claude-snapshot@latest apply ~/snapshot.tar.gz
+```
+
+Useful for one-off backups, CI, or trying the tool before adding the plugin to your Claude Code setup.
 
 ## Commands
 
@@ -177,6 +192,26 @@ Every file overwritten during `apply` is copied to `<file>.bak` first. If someth
 ```
 
 Snapshots you created (`*.tar.gz`) are plain files — delete them as you would any other file.
+
+## Roadmap
+
+The current release (v0.2) targets **Claude Code** as its first-class environment. The architecture is deliberately tool-agnostic at the collector level — `collect()` reads a config directory and produces a structured snapshot — so extending to sibling agent tools is a natural next step.
+
+**Planned support**
+
+| Target | Config root | Status |
+|---|---|---|
+| Claude Code | `~/.claude/` | ✅ v0.2 (current) |
+| OpenAI Codex CLI | `~/.codex/` | 🚧 planned for v0.3 |
+| Cursor | `~/.cursor/` | 🚧 planned for v0.3 |
+
+The goal is one tool, one command (`npx claude-snapshot export --target codex`), many backends — so moving across machines or migrating between agents doesn't mean rebuilding the whole setup. Contributions that add a collector/applier for a new tool are welcome; the bar is a hermetic test fixture and a round-trip test matching the existing pattern in `tests/snapshot.test.mjs`.
+
+**Shorter-term items** (not tool-expansion)
+
+- `--with-mcp` flag to write through `~/.claude.json` on apply (opt-in, with `.bak` of the full file)
+- Encrypted snapshot option for team sharing
+- Selective apply (pick subset of the snapshot contents)
 
 ## Contributing
 

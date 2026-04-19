@@ -1,7 +1,9 @@
-import { readFile, readdir, stat, writeFile, mkdir, rm, chmod } from 'node:fs/promises';
+#!/usr/bin/env node
+import { readFile, readdir, stat, writeFile, mkdir, rm, chmod, realpath } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { homedir, hostname } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import * as tar from 'tar';
 
 // --- Constants ---
@@ -672,8 +674,21 @@ async function cli() {
   }
 }
 
-// Only run CLI if this is the main module
-if (process.argv[1]?.endsWith('snapshot.mjs')) {
+// Only run CLI if this file is the entry point. Resolving argv[1] through
+// realpath handles the common case where the bin is invoked via an npm
+// symlink (e.g. `claude-snapshot` → `.../src/snapshot.mjs`).
+async function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    const resolvedArgv = await realpath(process.argv[1]);
+    const resolvedSelf = await realpath(fileURLToPath(import.meta.url));
+    return resolvedArgv === resolvedSelf;
+  } catch {
+    return process.argv[1].endsWith('snapshot.mjs');
+  }
+}
+
+if (await isMainModule()) {
   cli().catch(err => {
     console.error(JSON.stringify({ status: 'error', message: err.message }));
     process.exit(1);
