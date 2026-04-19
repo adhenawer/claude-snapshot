@@ -702,6 +702,132 @@ describe('schema version validation', () => {
   });
 });
 
+// --- Cross-machine simulation ---
+
+describe('cross-machine apply', () => {
+  it('resolves $HOME for a different user path on the target', async () => {
+    const { exportSnapshot, applySnapshot, collect } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-xmachine-'));
+    try {
+      // Build source fake home simulating /Users/alice
+      const aliceRoot = join(tempDir, 'alice-root');
+      const aliceClaude = join(aliceRoot, '.claude');
+      await mkdir(join(aliceClaude, 'hooks'), { recursive: true });
+      await mkdir(join(aliceClaude, 'plugins'), { recursive: true });
+      await writeFile(join(aliceClaude, 'settings.json'), JSON.stringify({
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Bash',
+            hooks: [{ type: 'command', command: `${aliceRoot}/.claude/hooks/guard.sh` }]
+          }]
+        },
+        env: { ALICE_VAR: `${aliceRoot}/work` }
+      }));
+      await writeFile(join(aliceClaude, 'CLAUDE.md'), '# Alice personal config');
+      await writeFile(join(aliceClaude, 'hooks/guard.sh'), '#!/bin/bash\necho alice-guard');
+      await writeFile(join(aliceClaude, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+      await writeFile(join(aliceRoot, '.claude.json'), JSON.stringify({
+        mcpServers: {
+          'filesystem': {
+            command: 'npx',
+            args: ['-y', '@anthropic/mcp-filesystem', `${aliceRoot}/workspace`],
+            env: {}
+          }
+        }
+      }));
+
+      // Export from alice
+      const tarPath = join(tempDir, 'alice-snapshot.tar.gz');
+      await exportSnapshot(aliceClaude, tarPath, { machineName: 'alice-mac' });
+
+      // Build target fake home simulating /Users/bob (different user path entirely)
+      const bobRoot = join(tempDir, 'bob-root');
+      const bobClaude = join(bobRoot, '.claude');
+      await mkdir(join(bobClaude, 'plugins'), { recursive: true });
+      await writeFile(join(bobClaude, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+      await writeFile(join(bobClaude, 'settings.json'), '{}');
+
+      // Apply snapshot to bob's machine
+      const result = await applySnapshot(tarPath, bobClaude, { skipInstall: true });
+
+      // 1. Settings paths resolved to bob, no alice trace
+      const bobSettings = await readFile(join(bobClaude, 'settings.json'), 'utf-8');
+      assert.ok(bobSettings.includes(bobRoot),
+        `settings should reference ${bobRoot}, got: ${bobSettings}`);
+      assert.ok(!bobSettings.includes(aliceRoot),
+        `settings must not contain any alice path, got: ${bobSettings}`);
+
+      // 2. Hook script copied and executable
+      const bobHook = join(bobClaude, 'hooks/guard.sh');
+      const hookStat = await stat(bobHook);
+      assert.ok(hookStat.mode & 0o100, 'hook must be executable (owner +x)');
+
+      // 3. CLAUDE.md copied
+      const bobMd = await readFile(join(bobClaude, 'CLAUDE.md'), 'utf-8');
+      assert.ok(bobMd.includes('Alice personal config'));
+
+      // 4. MCP report surfaces filesystem as missing (bob has no .claude.json)
+      assert.ok(result.mcpReport.missing.some(s => s.name === 'filesystem'),
+        'filesystem MCP should be reported as missing on bob');
+
+      // 5. Verify no alice path leaked anywhere under bob's .claude
+      const bobCollected = await collect(bobClaude);
+      const serialized = JSON.stringify(bobCollected);
+      assert.ok(!serialized.includes(aliceRoot),
+        'no alice path should appear anywhere in bob\'s collected state');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+});
+
+// --- Tarball corruption tests ---
+
+describe('tarball corruption', () => {
+  it('returns null when tarball has no manifest.json', async () => {
+    const { readManifestFromTar } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-no-manifest-'));
+    try {
+      const stagingDir = join(tempDir, 'staging');
+      await mkdir(stagingDir);
+      await writeFile(join(stagingDir, 'settings.json'), '{}');
+      const tarPath = join(tempDir, 'broken.tar.gz');
+      await tar.create({ gzip: true, file: tarPath, cwd: stagingDir }, ['settings.json']);
+      const result = await readManifestFromTar(tarPath);
+      assert.equal(result, null, 'should return null when no manifest.json');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('throws SyntaxError when manifest.json contains invalid JSON', async () => {
+    const { readManifestFromTar } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-bad-json-'));
+    try {
+      const stagingDir = join(tempDir, 'staging');
+      await mkdir(stagingDir);
+      await writeFile(join(stagingDir, 'manifest.json'), '{ this is not valid json');
+      const tarPath = join(tempDir, 'broken.tar.gz');
+      await tar.create({ gzip: true, file: tarPath, cwd: stagingDir }, ['manifest.json']);
+      await assert.rejects(readManifestFromTar(tarPath), SyntaxError);
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('throws on non-existent tarball path', async () => {
+    const { readManifestFromTar } = await import('../src/snapshot.mjs');
+    await assert.rejects(
+      readManifestFromTar('/tmp/this-file-does-not-exist-xyz123.tar.gz'),
+      /ENOENT/
+    );
+  });
+});
+
 // --- Round-trip integration test ---
 
 describe('round-trip: export -> inspect -> diff -> apply', () => {
