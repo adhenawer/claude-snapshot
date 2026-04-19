@@ -7,6 +7,8 @@ import * as tar from 'tar';
 // --- Constants ---
 
 const GLOBAL_MD_PATTERN = /\.md$/;
+const SCHEMA_VERSION = '1.0.0';
+const SUPPORTED_SCHEMA_MAJOR = 1;
 const SETTINGS_FILE = 'settings.json';
 const INSTALLED_PLUGINS = 'plugins/installed_plugins.json';
 const KNOWN_MARKETPLACES = 'plugins/known_marketplaces.json';
@@ -171,7 +173,7 @@ export function buildManifest(collected, machineName) {
   }
 
   return {
-    version: '1.0.0',
+    schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     exportedFrom: machineName || hostname(),
     plugins,

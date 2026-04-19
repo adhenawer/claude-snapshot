@@ -77,7 +77,7 @@ describe('buildManifest', () => {
     const { collect, buildManifest } = await import('../src/snapshot.mjs');
     const collected = await collect(FIXTURES);
     const manifest = buildManifest(collected, 'test-machine');
-    assert.equal(manifest.version, '1.0.0');
+    assert.equal(manifest.schemaVersion, '1.0.0');
     assert.equal(manifest.exportedFrom, 'test-machine');
     assert.ok(manifest.plugins.length > 0);
     assert.ok(manifest.plugins.every(p => p.scope === 'user'),
@@ -266,7 +266,7 @@ describe('exportSnapshot', () => {
       await exportSnapshot(FIXTURES, outputPath, { full: false, machineName: 'test' });
       const manifest = await readManifestFromTar(outputPath);
       assert.ok(manifest, 'should read manifest from tarball');
-      assert.equal(manifest.version, '1.0.0');
+      assert.equal(manifest.schemaVersion, '1.0.0');
       assert.equal(manifest.exportedFrom, 'test');
     } finally {
       await rm(tempDir, { recursive: true });
