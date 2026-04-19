@@ -828,6 +828,90 @@ describe('tarball corruption', () => {
   });
 });
 
+// --- CLI contract tests ---
+
+describe('CLI contract', () => {
+  const SCRIPT = resolve(__dirname, '../src/snapshot.mjs');
+
+  it('export emits status:ok JSON with path and counts', async () => {
+    const { execSync } = await import('node:child_process');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-cli-'));
+    try {
+      const outputPath = join(tempDir, 'cli-snap.tar.gz');
+      const env = { ...process.env, CLAUDE_CONFIG_DIR: FIXTURES };
+      const stdout = execSync(
+        `node ${SCRIPT} export --output ${outputPath}`,
+        { env, encoding: 'utf-8' }
+      );
+      const result = JSON.parse(stdout);
+      assert.equal(result.status, 'ok');
+      assert.equal(result.path, outputPath);
+      assert.ok(typeof result.plugins === 'number');
+      assert.ok(typeof result.hooks === 'number');
+      assert.ok(typeof result.globalMd === 'number');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('inspect emits status:ok JSON with manifest', async () => {
+    const { execSync } = await import('node:child_process');
+    const { exportSnapshot } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-cli-inspect-'));
+    try {
+      const tarPath = join(tempDir, 'snap.tar.gz');
+      await exportSnapshot(FIXTURES, tarPath, { machineName: 'cli-test' });
+      const stdout = execSync(
+        `node ${SCRIPT} inspect ${tarPath}`,
+        { encoding: 'utf-8' }
+      );
+      const result = JSON.parse(stdout);
+      assert.equal(result.status, 'ok');
+      assert.equal(result.manifest.schemaVersion, '1.0.0');
+      assert.equal(result.manifest.exportedFrom, 'cli-test');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('apply emits status:ok JSON with mcpReport', async () => {
+    const { execSync } = await import('node:child_process');
+    const { exportSnapshot } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-cli-apply-'));
+    try {
+      const tarPath = join(tempDir, 'snap.tar.gz');
+      await exportSnapshot(FIXTURES, tarPath, { machineName: 'cli-test' });
+
+      const targetHome = join(tempDir, 'target', '.claude');
+      await mkdir(join(targetHome, 'plugins'), { recursive: true });
+      await writeFile(join(targetHome, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+      await writeFile(join(targetHome, 'settings.json'), '{}');
+
+      const env = { ...process.env, CLAUDE_CONFIG_DIR: targetHome };
+      // The apply CLI path will try to run 'claude plugin add' — in test env
+      // there's no 'claude' binary, so it prints warnings but continues.
+      const stdout = execSync(
+        `node ${SCRIPT} apply ${tarPath}`,
+        { env, encoding: 'utf-8' }
+      );
+      const result = JSON.parse(stdout);
+      assert.equal(result.status, 'ok');
+      assert.ok(result.mcpReport, 'apply output must include mcpReport');
+      assert.ok(Array.isArray(result.mcpReport.missing));
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('unknown command exits 1 with error to stderr', async () => {
+    const { execSync } = await import('node:child_process');
+    assert.throws(() => {
+      execSync(`node ${SCRIPT} invalid-command`, { encoding: 'utf-8', stdio: 'pipe' });
+    }, /Unknown command|exit code 1/);
+  });
+});
+
 // --- Round-trip integration test ---
 
 describe('round-trip: export -> inspect -> diff -> apply', () => {
@@ -873,5 +957,21 @@ describe('round-trip: export -> inspect -> diff -> apply', () => {
     } finally {
       await rm(tempDir, { recursive: true });
     }
+  });
+});
+
+// --- Golden manifest shape contract ---
+
+describe('golden manifest shape', () => {
+  it('buildManifest output matches committed golden file (modulo timestamp)', async () => {
+    const { collect, buildManifest } = await import('../src/snapshot.mjs');
+    const golden = JSON.parse(
+      await readFile(resolve(__dirname, 'fixtures/golden-manifest.json'), 'utf-8')
+    );
+    const collected = await collect(FIXTURES);
+    const actual = buildManifest(collected, 'GOLDEN_MACHINE');
+    actual.exportedAt = 'GOLDEN_TIMESTAMP';
+    assert.deepEqual(actual, golden,
+      'manifest shape drifted from golden; if intentional, regenerate tests/fixtures/golden-manifest.json');
   });
 });

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "exportedAt": "GOLDEN_TIMESTAMP",
+  "exportedFrom": "GOLDEN_MACHINE",
+  "plugins": [
+    {
+      "name": "context7",
+      "marketplace": "claude-plugins-official",
+      "version": "unknown",
+      "scope": "user"
+    },
+    {
+      "name": "claude-hud",
+      "marketplace": "claude-hud",
+      "version": "0.0.12",
+      "scope": "user"
+    }
+  ],
+  "marketplaces": [
+    {
+      "name": "claude-hud",
+      "source": "github",
+      "repo": "jarrodwatts/claude-hud"
+    }
+  ],
+  "hooks": [
+    "hooks/test-hook.sh"
+  ],
+  "globalMd": [
+    "CLAUDE.md",
+    "RTK.md"
+  ],
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "method": "npm"
+    },
+    {
+      "name": "git",
+      "method": "pip"
+    },
+    {
+      "name": "custom",
+      "method": "binary"
+    }
+  ],
+  "checksums": {
+    "settings.json": "63a7c5418eeb881aa8ca842bd95ef335f2490972a6f8c702a4bc052cac76a633",
+    "global-md/CLAUDE.md": "961e248ee329b4cb76ca9fb2a17a86a7f37a677cb130d728253a07e6da6c1313",
+    "global-md/RTK.md": "85d93ac212620c39a75f189adc2573c9a4b1dc342bb3ccc75e82b402e11748be",
+    "hooks/test-hook.sh": "55549f00308a448d04df4b56a63a750a5a7b2c31bb34581d2bc96c425c977de4",
+    "mcp-servers.json": "042bcd3568b2b111d588887383380662ec2272914ede06efeb92cf9c26e58972"
+  }
+}
