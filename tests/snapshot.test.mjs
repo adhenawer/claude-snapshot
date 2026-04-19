@@ -492,6 +492,37 @@ describe('diffSnapshot', () => {
     const diff = await diffSnapshot(manifest, FIXTURES);
     assert.ok(diff.globalMd.changed.includes('CLAUDE.md'), 'CLAUDE.md should show as changed');
   });
+
+  it('detects missing MCP servers', async () => {
+    const { diffSnapshot } = await import('../src/snapshot.mjs');
+    const manifest = {
+      schemaVersion: '1.0.0',
+      plugins: [], marketplaces: [], hooks: [], globalMd: [],
+      mcpServers: [
+        { name: 'filesystem', method: 'npm' },
+        { name: 'new-server', method: 'pip' },
+      ],
+      checksums: {},
+    };
+    const diff = await diffSnapshot(manifest, FIXTURES);
+    assert.ok(diff.mcpServers.matched.some(s => s.name === 'filesystem'),
+      'filesystem should match (exists locally)');
+    assert.ok(diff.mcpServers.added.some(s => s.name === 'new-server'),
+      'new-server should be in added');
+  });
+
+  it('returns empty mcpServers diff when manifest has none', async () => {
+    const { diffSnapshot } = await import('../src/snapshot.mjs');
+    const manifest = {
+      schemaVersion: '1.0.0',
+      plugins: [], marketplaces: [], hooks: [], globalMd: [],
+      mcpServers: [],
+      checksums: {},
+    };
+    const diff = await diffSnapshot(manifest, FIXTURES);
+    assert.deepEqual(diff.mcpServers.added, []);
+    assert.deepEqual(diff.mcpServers.matched, []);
+  });
 });
 
 // --- Apply tests ---

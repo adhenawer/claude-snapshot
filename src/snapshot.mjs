@@ -477,11 +477,23 @@ export async function diffSnapshot(manifest, claudeHome) {
     }
   }
 
+  // Diff MCP servers
+  const localMcpNames = new Set((local.mcpServers || []).map(s => s.name));
+  const mcpDiff = { added: [], matched: [] };
+  for (const s of (manifest.mcpServers || [])) {
+    if (localMcpNames.has(s.name)) {
+      mcpDiff.matched.push(s);
+    } else {
+      mcpDiff.added.push(s);
+    }
+  }
+
   return {
     plugins: pluginDiff,
     hooks: hookDiff,
     globalMd: mdDiff,
     settings: settingsDiff,
+    mcpServers: mcpDiff,
   };
 }
 
