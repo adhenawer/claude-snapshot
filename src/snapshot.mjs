@@ -283,7 +283,24 @@ export async function readManifestFromTar(tarPath) {
       }
     }
   });
-  return manifestContent ? JSON.parse(manifestContent) : null;
+  if (!manifestContent) return null;
+  const raw = JSON.parse(manifestContent);
+
+  // Backward compat: v0.1 tarballs used `version` instead of `schemaVersion`
+  if (!raw.schemaVersion && raw.version) {
+    raw.schemaVersion = raw.version;
+  }
+  if (!raw.schemaVersion) {
+    throw new Error('Invalid snapshot: manifest has no schemaVersion field');
+  }
+  const major = parseInt(raw.schemaVersion.split('.')[0], 10);
+  if (major !== SUPPORTED_SCHEMA_MAJOR) {
+    throw new Error(
+      `Unsupported schemaVersion ${raw.schemaVersion}: this claude-snapshot ` +
+      `supports major version ${SUPPORTED_SCHEMA_MAJOR}. Upgrade claude-snapshot or re-export.`
+    );
+  }
+  return raw;
 }
 
 export async function listTarEntries(tarPath) {

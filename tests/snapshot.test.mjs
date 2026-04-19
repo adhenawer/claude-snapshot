@@ -415,6 +415,72 @@ describe('applySnapshot', () => {
   });
 });
 
+// --- Schema version validation tests ---
+
+describe('schema version validation', () => {
+  it('accepts tarballs with matching schemaVersion', async () => {
+    const { exportSnapshot, readManifestFromTar } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-schema-'));
+    try {
+      const outputPath = join(tempDir, 'snap.tar.gz');
+      await exportSnapshot(FIXTURES, outputPath, { machineName: 'test' });
+      const manifest = await readManifestFromTar(outputPath);
+      assert.equal(manifest.schemaVersion, '1.0.0');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('accepts legacy manifests with version field (v0.1 compat)', async () => {
+    const { readManifestFromTar } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-legacy-'));
+    try {
+      const stagingDir = join(tempDir, 'staging');
+      await mkdir(stagingDir, { recursive: true });
+      const legacyManifest = {
+        version: '1.0.0',
+        exportedAt: '2025-01-01T00:00:00.000Z',
+        exportedFrom: 'legacy-machine',
+        plugins: [], marketplaces: [], hooks: [], globalMd: [], checksums: {},
+      };
+      await writeFile(join(stagingDir, 'manifest.json'), JSON.stringify(legacyManifest));
+      const tarPath = join(tempDir, 'legacy.tar.gz');
+      await tar.create({ gzip: true, file: tarPath, cwd: stagingDir }, ['manifest.json']);
+      const manifest = await readManifestFromTar(tarPath);
+      assert.equal(manifest.schemaVersion, '1.0.0',
+        'legacy version field should be normalized to schemaVersion');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('rejects tarballs with unsupported major schemaVersion', async () => {
+    const { readManifestFromTar } = await import('../src/snapshot.mjs');
+    const tar = await import('tar');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-future-'));
+    try {
+      const stagingDir = join(tempDir, 'staging');
+      await mkdir(stagingDir, { recursive: true });
+      const futureManifest = {
+        schemaVersion: '99.0.0',
+        exportedAt: '2099-01-01T00:00:00.000Z',
+        exportedFrom: 'future-machine',
+        plugins: [], marketplaces: [], hooks: [], globalMd: [], checksums: {},
+      };
+      await writeFile(join(stagingDir, 'manifest.json'), JSON.stringify(futureManifest));
+      const tarPath = join(tempDir, 'future.tar.gz');
+      await tar.create({ gzip: true, file: tarPath, cwd: stagingDir }, ['manifest.json']);
+      await assert.rejects(
+        readManifestFromTar(tarPath),
+        /unsupported schemaVersion/i
+      );
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+});
+
 // --- Round-trip integration test ---
 
 describe('round-trip: export -> inspect -> diff -> apply', () => {
