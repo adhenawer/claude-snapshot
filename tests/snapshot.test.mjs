@@ -582,6 +582,58 @@ describe('applySnapshot', () => {
       await rm(tempDir, { recursive: true });
     }
   });
+
+  it('returns mcpReport listing servers that need install', async () => {
+    const { exportSnapshot, applySnapshot } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-mcp-apply-'));
+    try {
+      const tarPath = join(tempDir, 'snapshot.tar.gz');
+      await exportSnapshot(FIXTURES, tarPath, { machineName: 'test' });
+
+      const targetHome = join(tempDir, 'target-claude');
+      await mkdir(targetHome, { recursive: true });
+      await mkdir(join(targetHome, 'plugins'), { recursive: true });
+      await writeFile(join(targetHome, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+
+      const result = await applySnapshot(tarPath, targetHome, { skipInstall: true });
+
+      assert.ok(result.mcpReport, 'apply result should include mcpReport');
+      assert.equal(result.mcpReport.missing.length, 3);
+      const methods = result.mcpReport.missing.map(s => s.method).sort();
+      assert.deepEqual(methods, ['binary', 'npm', 'pip']);
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
+
+  it('does NOT modify .claude.json during apply', async () => {
+    const { exportSnapshot, applySnapshot } = await import('../src/snapshot.mjs');
+    const tempDir = await mkdtemp(join(tmpdir(), 'snapshot-no-mcp-write-'));
+    try {
+      const tarPath = join(tempDir, 'snapshot.tar.gz');
+      await exportSnapshot(FIXTURES, tarPath, { machineName: 'test' });
+
+      const targetHome = join(tempDir, 'target-claude');
+      await mkdir(targetHome, { recursive: true });
+      await mkdir(join(targetHome, 'plugins'), { recursive: true });
+      await writeFile(join(targetHome, 'plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: {} }));
+
+      // Pre-existing .claude.json with sensitive OAuth data
+      const claudeJsonPath = join(tempDir, '.claude.json');
+      const preExisting = { oauthAccount: 'PRESERVE_ME', mcpServers: {} };
+      await writeFile(claudeJsonPath, JSON.stringify(preExisting));
+
+      await applySnapshot(tarPath, targetHome, { skipInstall: true });
+
+      const afterContent = await readFile(claudeJsonPath, 'utf-8');
+      assert.ok(afterContent.includes('PRESERVE_ME'),
+        'v0.2 apply must not overwrite existing .claude.json (OAuth preservation)');
+    } finally {
+      await rm(tempDir, { recursive: true });
+    }
+  });
 });
 
 // --- Schema version validation tests ---

@@ -588,7 +588,22 @@ export async function applySnapshot(tarPath, claudeHome, options = {}) {
       }
     }
 
-    return manifest;
+    // Build MCP report (do NOT write to ~/.claude.json in v0.2)
+    const mcpStagingPath = join(stagingDir, 'mcp-servers.json');
+    let mcpReport = { missing: [], matched: [] };
+    if (await fileExists(mcpStagingPath) && manifest.mcpServers) {
+      const localMcp = await collectMcpServers(claudeHome);
+      const localNames = new Set(localMcp.map(s => s.name));
+      for (const s of manifest.mcpServers) {
+        if (localNames.has(s.name)) {
+          mcpReport.matched.push(s);
+        } else {
+          mcpReport.missing.push(s);
+        }
+      }
+    }
+
+    return { ...manifest, mcpReport };
   } finally {
     // Clean up staging
     await rm(stagingDir, { recursive: true, force: true });
@@ -641,8 +656,12 @@ async function cli() {
 
     case 'apply': {
       const tarPath = resolve(args[0]);
-      const manifest = await applySnapshot(tarPath, claudeHome);
-      console.log(JSON.stringify({ status: 'ok', manifest }));
+      const result = await applySnapshot(tarPath, claudeHome);
+      console.log(JSON.stringify({
+        status: 'ok',
+        manifest: result,
+        mcpReport: result.mcpReport,
+      }));
       break;
     }
 
