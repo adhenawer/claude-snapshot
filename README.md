@@ -59,13 +59,18 @@ Design decisions in this plugin are evaluated against these principles.
 
 ### Try without installing (via npx)
 
-Run any command directly from the npm registry — no marketplace registration, no install, no reload:
+No marketplace registration, no install, no reload — run it straight from the npm registry:
 
 ```bash
-npx claude-snapshot@latest export --output ~/snapshot.tar.gz
-npx claude-snapshot@latest inspect ~/snapshot.tar.gz
-npx claude-snapshot@latest diff ~/snapshot.tar.gz
-npx claude-snapshot@latest apply ~/snapshot.tar.gz
+npx -y claude-snapshot export
+```
+
+Writes a snapshot to `~/claude-snapshot-YYYY-MM-DD.tar.gz` and prints the path. The other commands take that path as their only argument:
+
+```bash
+npx -y claude-snapshot inspect <path>
+npx -y claude-snapshot diff    <path>
+npx -y claude-snapshot apply   <path>
 ```
 
 Useful for one-off backups, CI, or trying the tool before adding the plugin to your Claude Code setup.
@@ -75,8 +80,6 @@ Useful for one-off backups, CI, or trying the tool before adding the plugin to y
 | Command | Description |
 |---|---|
 | `/snapshot:export` | Export your setup as a portable `.tar.gz` snapshot |
-| `/snapshot:export --full` | Include plugin caches for offline restore |
-| `/snapshot:export --output <path>` | Custom output path |
 | `/snapshot:inspect <path>` | Preview snapshot contents without extracting |
 | `/snapshot:diff <path>` | Compare a snapshot against your current setup |
 | `/snapshot:apply <path>` | Apply a snapshot to this machine (with confirmation) |
@@ -86,33 +89,33 @@ Useful for one-off backups, CI, or trying the tool before adding the plugin to y
 ### Sync between machines
 
 ```bash
-# On your personal machine
-/snapshot:export --output ~/Drive/claude-snapshot.tar.gz
+# On your personal machine — writes to ~/claude-snapshot-YYYY-MM-DD.tar.gz
+/snapshot:export
 
-# On your work machine
-/snapshot:apply ~/Drive/claude-snapshot.tar.gz
+# Copy the file to your work machine (via Drive, scp, USB, etc.), then:
+/snapshot:apply ~/claude-snapshot-YYYY-MM-DD.tar.gz
 ```
 
 ### Backup before format
 
 ```bash
 # Before wiping
-/snapshot:export --full --output ~/Desktop/claude-backup.tar.gz
+/snapshot:export
 
 # After fresh install + Claude Code installed
-/snapshot:apply ~/Desktop/claude-backup.tar.gz
+/snapshot:apply ~/claude-snapshot-YYYY-MM-DD.tar.gz
 ```
 
 ### Safe experimentation
 
 ```bash
 # Save current state
-/snapshot:export --output ~/claude-before-experiment.tar.gz
+/snapshot:export
 
 # Try new plugins, change hooks, break things...
 
-# Something went wrong? Roll back
-/snapshot:apply ~/claude-before-experiment.tar.gz
+# Something went wrong? Roll back (use the path printed by export)
+/snapshot:apply ~/claude-snapshot-YYYY-MM-DD.tar.gz
 ```
 
 ## What migrates
