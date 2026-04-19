@@ -243,6 +243,45 @@ describe('apply plugin install command', () => {
   });
 });
 
+// --- MCP classifier tests ---
+
+describe('classifyMcpMethod', () => {
+  it('classifies npx as npm', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: 'npx', args: ['-y', '@anthropic/mcp-filesystem'] }), 'npm');
+  });
+
+  it('classifies uvx as pip', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: 'uvx', args: ['mcp-server-git'] }), 'pip');
+  });
+
+  it('classifies uv as pip', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: 'uv', args: ['run', 'mcp-server'] }), 'pip');
+  });
+
+  it('classifies absolute path as binary', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: '/usr/local/bin/my-mcp' }), 'binary');
+  });
+
+  it('classifies node command as binary', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: 'node', args: ['/path/to/server.js'] }), 'binary');
+  });
+
+  it('classifies unknown command as manual', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({ command: 'my-custom-runner' }), 'manual');
+  });
+
+  it('classifies missing command as manual', async () => {
+    const { classifyMcpMethod } = await import('../src/snapshot.mjs');
+    assert.equal(classifyMcpMethod({}), 'manual');
+  });
+});
+
 // --- Export tests ---
 
 describe('exportSnapshot', () => {
