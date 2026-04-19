@@ -37,4 +37,17 @@ node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" apply "$SNAPSHOT_PATH"
    - Plugins installed (or failed to install)
    - Any warnings (e.g., runtime path differences between machines)
 
-6. **Important:** Warn the user to restart Claude Code for changes to take full effect.
+6. **MCP servers — post-apply guidance:**
+
+   If `result.mcpReport.missing` is non-empty, surface it as a dedicated section. For each missing server, show install guidance based on its `method`:
+
+   - **npm**: "Install with the MCP's official install command (e.g. `claude mcp add {name} npx -y <package>`)."
+   - **pip**: "Install with `uvx <package>` or the project's documented uv/pipx command."
+   - **binary**: "This MCP points to a local binary ({command}). Confirm the binary exists on this machine or install it."
+   - **manual**: "This MCP uses a custom command ({command}). Refer to its source documentation."
+
+   > **Do NOT modify `~/.claude.json` yourself. v0.2 explicitly reports without writing because `.claude.json` also holds OAuth tokens. The user installs MCPs through their normal tooling; the snapshot tells them *what* to install, not *how to edit the file*.**
+
+   If `result.mcpReport.matched` is non-empty, you can mention briefly that those MCPs were already present and no action is needed.
+
+7. **Important:** Warn the user to restart Claude Code for changes to take full effect.

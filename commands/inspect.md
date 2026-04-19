@@ -22,6 +22,8 @@ node "${CLAUDE_PLUGIN_ROOT}/src/snapshot.mjs" inspect "$SNAPSHOT_PATH"
 ```
 
 3. Parse the JSON manifest and present a readable summary:
+   - **First line:** `Schema {manifest.schemaVersion}` (e.g. `Schema 1.0.0`)
+   - If `manifest.mcpServers.length > 0`, show a line: `MCP servers: N (npm: X, pip: Y, binary: Z, manual: W)` — counts grouped by each server's `method`. If `length === 0`, omit the line entirely.
    - Export date and source machine
    - Plugin list with versions
    - Marketplace registrations

@@ -42,6 +42,14 @@ Global MDs:
 Settings:
   ~ settings.json              (content differs)
   = settings.json              (match)
+
+MCP servers:
+  + MCP: server-name (npm)     (missing locally)
+  = 3 MCP servers already present.
 ```
 
 Use `+` for additions, `~` for changes, `=` for matches.
+
+**MCP servers rendering:**
+- If `diff.mcpServers.added.length > 0`, render each as `+ MCP: {name} ({method})`, followed by the note: "These MCP servers are in the snapshot but not on this machine. Apply will tell you how to install each."
+- If `diff.mcpServers.matched.length > 0` and `added` is empty, render a single line: `= {N} MCP servers already present.`
