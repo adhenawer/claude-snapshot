@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-filesystem", "/Users/testuser/Code"],
+      "env": {}
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/Users/testuser/repos/project"],
+      "env": {}
+    },
+    "custom": {
+      "command": "/Users/testuser/bin/my-mcp",
+      "args": [],
+      "env": { "MCP_HOME": "/Users/testuser/.config/mcp" }
+    }
+  },
+  "oauthAccount": "SHOULD_NOT_APPEAR_IN_SNAPSHOT",
+  "projects": { "some-project": { "allowedTools": ["Bash"] } }
+}

@@ -81,6 +81,27 @@ export function classifyMcpMethod(server) {
   return 'manual';
 }
 
+// --- MCP collection ---
+
+const CLAUDE_JSON_FILENAME = '.claude.json';
+
+export async function collectMcpServers(claudeHome) {
+  const claudeJsonPath = join(dirname(claudeHome), CLAUDE_JSON_FILENAME);
+  const raw = await readJsonSafe(claudeJsonPath);
+  if (!raw || !raw.mcpServers) return [];
+  const servers = [];
+  for (const [name, config] of Object.entries(raw.mcpServers)) {
+    servers.push({
+      name,
+      command: config.command,
+      args: config.args || [],
+      env: config.env || {},
+      method: classifyMcpMethod(config),
+    });
+  }
+  return servers;
+}
+
 // --- Collector ---
 
 export async function collect(claudeHome) {

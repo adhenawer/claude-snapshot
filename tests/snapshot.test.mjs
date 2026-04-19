@@ -282,6 +282,64 @@ describe('classifyMcpMethod', () => {
   });
 });
 
+// --- MCP collector tests ---
+
+describe('collectMcpServers', () => {
+  it('reads mcpServers from sibling .claude.json', async () => {
+    const { collectMcpServers } = await import('../src/snapshot.mjs');
+    const servers = await collectMcpServers(FIXTURES);
+    assert.equal(servers.length, 3);
+    const names = servers.map(s => s.name).sort();
+    assert.deepEqual(names, ['custom', 'filesystem', 'git']);
+  });
+
+  it('attaches classified install method to each server', async () => {
+    const { collectMcpServers } = await import('../src/snapshot.mjs');
+    const servers = await collectMcpServers(FIXTURES);
+    const byName = Object.fromEntries(servers.map(s => [s.name, s]));
+    assert.equal(byName.filesystem.method, 'npm');
+    assert.equal(byName.git.method, 'pip');
+    assert.equal(byName.custom.method, 'binary');
+  });
+
+  it('ignores non-mcpServers keys (oauthAccount, projects)', async () => {
+    const { collectMcpServers } = await import('../src/snapshot.mjs');
+    const servers = await collectMcpServers(FIXTURES);
+    const serialized = JSON.stringify(servers);
+    assert.ok(!serialized.includes('SHOULD_NOT_APPEAR_IN_SNAPSHOT'),
+      'oauthAccount value must not leak into collected MCPs');
+    assert.ok(!serialized.includes('allowedTools'),
+      'project config must not leak into collected MCPs');
+  });
+
+  it('returns empty array when .claude.json does not exist', async () => {
+    const { collectMcpServers } = await import('../src/snapshot.mjs');
+    const emptyDir = await mkdtemp(join(tmpdir(), 'snapshot-no-mcp-'));
+    try {
+      const fakeHome = join(emptyDir, '.claude');
+      await mkdir(fakeHome);
+      const servers = await collectMcpServers(fakeHome);
+      assert.deepEqual(servers, []);
+    } finally {
+      await rm(emptyDir, { recursive: true });
+    }
+  });
+
+  it('returns empty array when .claude.json has no mcpServers key', async () => {
+    const { collectMcpServers } = await import('../src/snapshot.mjs');
+    const emptyDir = await mkdtemp(join(tmpdir(), 'snapshot-no-mcp-key-'));
+    try {
+      const fakeHome = join(emptyDir, '.claude');
+      await mkdir(fakeHome);
+      await writeFile(join(emptyDir, '.claude.json'), JSON.stringify({ oauthAccount: 'x' }));
+      const servers = await collectMcpServers(fakeHome);
+      assert.deepEqual(servers, []);
+    } finally {
+      await rm(emptyDir, { recursive: true });
+    }
+  });
+});
+
 // --- Export tests ---
 
 describe('exportSnapshot', () => {
